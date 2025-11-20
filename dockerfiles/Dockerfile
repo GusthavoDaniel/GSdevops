@@ -20,7 +20,10 @@ RUN dotnet publish "CareerMap.Recommendations.Api.csproj" -c Release -o /app/pub
 # Estágio Final (Runtime)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-EXPOSE 8080
+
+# App Service espera porta 80
+EXPOSE 80
+ENV ASPNETCORE_URLS=http://+:80
 
 # Copia os arquivos publicados
 COPY --from=publish /app/publish .
