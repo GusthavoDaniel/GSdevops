@@ -1,0 +1,82 @@
+# Arquivo: azure-pipeline.yml
+# Pipeline de Build (CI) para a aplicação .NET Core
+# Acionado automaticamente após Merge via PR na branch principal.
+
+trigger:
+  branches:
+    include:
+    - main # Substitua 'main' pelo nome da sua branch principal, se for diferente
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotNetSdkVersion: '8.x'
+  projectPath: 'CareerMap.Recommendations.Api/CareerMap.Recommendations.Api.csproj'
+  testProjectPath: 'CareerMap.Recommendations.Tests/CareerMap.Recommendations.Tests.csproj' # Ajuste se necessário
+
+stages:
+- stage: Build
+  displayName: 'Build e Testes'
+  jobs:
+  - job: BuildJob
+    displayName: 'Compilar e Testar'
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Usar .NET SDK $(dotNetSdkVersion)'
+      inputs:
+        version: '$(dotNetSdkVersion)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restaurar Dependências'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Compilar Projeto'
+      inputs:
+        command: 'build'
+        projects: '$(projectPath)'
+        arguments: '--configuration $(buildConfiguration)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Executar Testes (XUnit)'
+      inputs:
+        command: 'test'
+        projects: '$(testProjectPath)'
+        arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
+        publishTestResults: true
+        testRunTitle: 'Testes de Unidade e Integração'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publicar Artefato'
+      inputs:
+        command: 'publish'
+        projects: '$(projectPath)'
+        publishWebProjects: false
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publicar Artefato de Build'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+# NOTA: O Pipeline de Release (Deploy) deve ser criado no Azure DevOps (Classic ou YAML multi-stage)
+# e deve ser configurado para rodar automaticamente após a conclusão deste Build.
+# O deploy pode ser para o Web App PaaS provisionado ou para um Container Registry/Instance.
+# Para o requisito de Release automático, a configuração é feita no Azure DevOps.
+# Se o deploy for para Container, o passo de Build deve incluir a construção e push da imagem Docker.
+# Como o requisito permite Web App PaaS, o pipeline acima está configurado para gerar o pacote de deploy.
+# Para Container, o Build Job precisaria de Service Connection para o ACR e os seguintes passos:
+# - task: Docker@2
+#   inputs:
+#     command: 'buildAndPush'
+#     containerRegistry: 'ACR_SERVICE_CONNECTION'
+#     repository: 'gs-net-api'
+#     dockerfile: 'dockerfiles/Dockerfile'
+#     tags: '$(Build.BuildId)'
