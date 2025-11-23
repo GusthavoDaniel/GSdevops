@@ -3,19 +3,38 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Connection string (vem de appsettings.* ou das App Settings no Azure)
-var conn = builder.Configuration.GetConnectionString("DefaultConnection");
+// ----------------------
+// 1) CONNECTION STRING
+// ----------------------
+// Procura primeiro em ConnectionStrings:DefaultConnection (appsettings / App Settings),
+// e também aceita VARIABLE "DefaultConnection" pura (App Service -> Configuration).
+var conn = builder.Configuration.GetConnectionString("DefaultConnection")
+          ?? builder.Configuration["DefaultConnection"];
 
-// 2) Provedor do EF: SQLite no Dev, SQL Server no Azure/Prod
+if (string.IsNullOrWhiteSpace(conn))
+    throw new InvalidOperationException(
+        "Defina a connection string 'DefaultConnection' (SQL Server OU SQLite).");
+
+// ----------------------
+// 2) PROVEDOR EF CORE
+// ----------------------
+// Se a conn tiver "Data Source=" ou terminar com .db => SQLite
+// Caso contrário => SQL Server.
 builder.Services.AddDbContext<RecommendationsDbContext>(options =>
 {
-    if (builder.Environment.IsDevelopment())
-        options.UseSqlite(conn);          // ex.: "Data Source=careermap.db"
+    var isSqlite =
+        conn.Contains("Data Source=", StringComparison.OrdinalIgnoreCase) ||
+        conn.Trim().EndsWith(".db", StringComparison.OrdinalIgnoreCase);
+
+    if (isSqlite)
+        options.UseSqlite(conn);
     else
-        options.UseSqlServer(conn);       // ex.: "Server=tcp:...;Database=...;User ID=...;Password=...;Encrypt=True;"
+        options.UseSqlServer(conn);
 });
 
-// 3) Serviços padrão
+// ----------------------
+// 3) SERVIÇOS WEB
+// ----------------------
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -23,23 +42,48 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// 4) Swagger em todos os ambientes (precisamos no Azure)
+// ----------------------
+// 4) SWAGGER (sempre)
+// ----------------------
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CareerMap.Recommendations API v1");
+    // Deixe o UI em /swagger (padrão). Se quiser na raiz, descomente:
+    // c.RoutePrefix = string.Empty;
+});
 
-// 5) Pipeline
-app.UseHttpsRedirection();
+// ----------------------
+// 5) PIPELINE
+// ----------------------
+// O App Service Linux muitas vezes não tem HTTPS ligado no container,
+// então só redireciona se houver porta HTTPS definida.
+var httpsPorts = Environment.GetEnvironmentVariable("HTTPS_PORTS");
+if (!string.IsNullOrEmpty(httpsPorts))
+    app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 app.MapControllers();
 
-// 6) Healthcheck e rota raiz
+// ----------------------
+// 6) HEALTH + ROOT
+// ----------------------
 app.MapHealthChecks("/health");
-app.MapGet("/", () => Results.Ok("API no ar 🚀"));
 
-// 7) Migrations automáticas só no Dev (local)
-//   No Azure vamos aplicar com migrations/SQL ou deixar a base já criada.
-if (app.Environment.IsDevelopment())
+// Raiz aponta pro Swagger pra evitar 404 na home.
+app.MapGet("/", () => Results.Redirect("/swagger"));
+
+// ----------------------
+// 7) MIGRATIONS AUTOMÁTICAS (opcional)
+// ----------------------
+// Por padrão só roda em Development. Para forçar em produção, defina
+// a App Setting RUN_MIGRATIONS=true.
+bool runMigrations =
+    app.Environment.IsDevelopment() ||
+    string.Equals(Environment.GetEnvironmentVariable("RUN_MIGRATIONS"), "true", StringComparison.OrdinalIgnoreCase);
+
+if (runMigrations)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
