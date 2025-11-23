@@ -1,34 +1,18 @@
-using System.IO;
 using CareerMap.Recommendations.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Connection string (prioriza env var do App Service, depois appsettings)
-var rawConn =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration["ConnectionStrings:DefaultConnection"]
-    ?? "Data Source=/home/careermap/data/CareerMapRecommendations.db";
+// 1) Connection string (prioriza variável de ambiente do App Service)
+var conn =
+    builder.Configuration["ConnectionStrings:DefaultConnection"] // ex.: ConnectionStrings__DefaultConnection
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=/home/site/wwwroot/CareerMapRecommendations.db"; // caminho gravável no App Service
 
-// garante que a pasta existe (App Service Linux permite gravar em /home)
-var dbPath = rawConn.Replace("Data Source=", "", StringComparison.OrdinalIgnoreCase);
-var dbDir = Path.GetDirectoryName(dbPath);
-if (!string.IsNullOrEmpty(dbDir) && !Directory.Exists(dbDir))
-{
-    Directory.CreateDirectory(dbDir);
-}
+// 2) EF Core (SQLite)
+builder.Services.AddDbContext<RecommendationsDbContext>(opt => opt.UseSqlite(conn));
 
-// 2) EF Core (SQLite) com alguns tunings p/ evitar lock
-builder.Services.AddDbContext<RecommendationsDbContext>(options =>
-{
-    options.UseSqlite(rawConn, sqlite =>
-    {
-        // aumente tempo de espera de lock
-        sqlite.CommandTimeout(30);
-    });
-});
-
-// 3) Serviços básicos
+// 3) Serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -36,7 +20,7 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// 4) Swagger sempre ativo
+// 4) Swagger SEMPRE ativo (útil para prod no App Service)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -44,30 +28,21 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-// 5) Pipeline
+// 5) NÃO usar HTTPS redirection dentro do container (o App Service já termina TLS)
+//// app.UseHttpsRedirection();
+
 app.UseAuthorization();
+
+// 6) Endpoints
 app.MapControllers();
-
-// 6) Health e raiz
 app.MapHealthChecks("/health");
-app.MapGet("/", () => Results.Ok("OK"));
+app.MapGet("/", () => Results.Ok("API no ar 🚀"));
 
-// 7) Migrations automáticas com try/catch (não travar startup)
+// 7) Migrations automáticas
 using (var scope = app.Services.CreateScope())
 {
-    try
-    {
-        var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
-
-        // reduz probabilidade de lock no SQLite
-        db.Database.SetCommandTimeout(30);
-        db.Database.Migrate();
-    }
-    catch (Exception ex)
-    {
-        // não derruba o app se migrar falhar — loga e segue
-        Console.WriteLine($"[Startup][Migrate] Falhou: {ex.Message}");
-    }
+    var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
+    db.Database.Migrate();
 }
 
 app.Run();
