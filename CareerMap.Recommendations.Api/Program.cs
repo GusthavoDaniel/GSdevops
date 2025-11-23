@@ -3,18 +3,19 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Pega a connection string (funciona local e no Azure)
+// 1) Connection string (vem de appsettings.* ou das App Settings no Azure)
 var conn = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Usa SQLite localmente e SQL Server no Azure
+// 2) Provedor do EF: SQLite no Dev, SQL Server no Azure/Prod
 builder.Services.AddDbContext<RecommendationsDbContext>(options =>
 {
     if (builder.Environment.IsDevelopment())
-        options.UseSqlite(conn);
+        options.UseSqlite(conn);          // ex.: "Data Source=careermap.db"
     else
-        options.UseSqlServer(conn);
+        options.UseSqlServer(conn);       // ex.: "Server=tcp:...;Database=...;User ID=...;Password=...;Encrypt=True;"
 });
 
+// 3) Serviços padrão
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -22,20 +23,22 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Habilita Swagger em todos os ambientes (pra testar no Azure também)
+// 4) Swagger em todos os ambientes (precisamos no Azure)
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// 5) Pipeline
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
 
-// Teste simples pra confirmar que a API subiu
+// 6) Healthcheck e rota raiz
+app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok("API no ar 🚀"));
 
-// Aplica migrations localmente apenas
+// 7) Migrations automáticas só no Dev (local)
+//   No Azure vamos aplicar com migrations/SQL ou deixar a base já criada.
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
