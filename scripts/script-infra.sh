@@ -91,9 +91,7 @@ az sql db create \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --server "$SQL_SERVER_NAME" \
   --name "$SQL_DATABASE_NAME" \
-  --edition Basic \
-  --family Gen5 \
-  --capacity 1
+  --service-objective Basic
 
 # Montar a connection string padrão do SQL
 CONNECTION_STRING="Server=tcp:$SQL_SERVER_NAME.database.windows.net,1433;Initial Catalog=$SQL_DATABASE_NAME;Persist Security Info=False;User ID=$SQL_ADMIN_USER;Password=$SQL_ADMIN_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
@@ -126,10 +124,11 @@ echo "➡️ Configurando Web App para usar o ACR como fonte de imagens"
 az webapp config container set \
   --name "$WEB_APP_NAME" \
   --resource-group "$RESOURCE_GROUP_NAME" \
-  --docker-custom-image-name "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-  --docker-registry-server-url "https://$ACR_LOGIN_SERVER" \
-  --docker-registry-server-user "$ACR_USERNAME" \
-  --docker-registry-server-password "$ACR_PASSWORD"
+  --container-image-name "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+  --container-registry-url "https://$ACR_LOGIN_SERVER" \
+  --container-registry-user "$ACR_USERNAME" \
+  --container-registry-password "$ACR_PASSWORD"
+
 
 # ========== VARIÁVEIS DE AMBIENTE DO APP ==========
 echo "➡️ Configurando variáveis de ambiente do Web App"
