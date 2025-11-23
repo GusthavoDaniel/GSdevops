@@ -1,30 +1,20 @@
 using CareerMap.Recommendations.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Connection string: appsettings -> env var -> fallback (arquivo em /home/data)
+// Caminho gravável no App Service Linux
+var defaultPath = "/home/data/CareerMapRecommendations.db";
+
+// Lê da ConnectionStrings (pega o env var ConnectionStrings__DefaultConnection)
+// cai no fallback em /home/data se não existir
 var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-           ?? builder.Configuration["DefaultConnection"]
-           ?? "Data Source=/home/data/CareerMapRecommendations.db";
+          ?? $"Data Source={defaultPath};Cache=Shared;Pooling=True";
 
-// 2) Garante que a pasta do arquivo existe (Azure App Service Linux grava em /home)
-try
-{
-    var dataSourcePrefix = "Data Source=";
-    var idx = conn.IndexOf(dataSourcePrefix, StringComparison.OrdinalIgnoreCase);
-    if (idx >= 0)
-    {
-        var path = conn[(idx + dataSourcePrefix.Length)..].Trim();
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-    }
-}
-catch { /* se falhar, seguimos; o EnsureCreated abaixo acusa no log */ }
+// Garante que a pasta /home/data existe antes de abrir o arquivo
+try { System.IO.Directory.CreateDirectory("/home/data"); } catch { /* ignore */ }
 
-// 3) Sempre SQLite
+// Sempre SQLite
 builder.Services.AddDbContext<RecommendationsDbContext>(opt => opt.UseSqlite(conn));
 
 builder.Services.AddHealthChecks();
@@ -34,7 +24,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 4) Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -44,21 +33,20 @@ app.UseSwaggerUI(c =>
 
 app.UseAuthorization();
 
-// 5) Endpoints
 app.MapHealthChecks("/health");
 app.MapControllers();
 app.MapGet("/", () => Results.Ok("API ok 🚀"));
 
-// 6) Cria o banco/tabelas se não existir (modo demo)
+// Cria o arquivo/tabelas se não existir (rápido e suficiente para a demo)
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
-    db.Database.EnsureCreated(); // cria o schema para o SQLite
+    db.Database.EnsureCreated(); // usando SQLite
 }
 catch (Exception ex)
 {
-    app.Logger.LogError(ex, "Falha ao inicializar o banco SQLite.");
+    app.Logger.LogError(ex, "Falha ao inicializar o banco.");
 }
 
 app.Run();
