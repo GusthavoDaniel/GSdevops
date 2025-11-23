@@ -3,37 +3,44 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Pega a connection string (funciona local e no Azure)
+var conn = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Usa SQLite localmente e SQL Server no Azure
 builder.Services.AddDbContext<RecommendationsDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Environment.IsDevelopment())
+        options.UseSqlite(conn);
+    else
+        options.UseSqlServer(conn);
+});
 
-// Add services to the container.
 builder.Services.AddControllers();
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Habilita Swagger em todos os ambientes (pra testar no Azure também)
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
-// Aplica as migrations ao iniciar a aplicação (em ambiente de desenvolvimento)
+// Teste simples pra confirmar que a API subiu
+app.MapGet("/", () => Results.Ok("API no ar 🚀"));
+
+// Aplica migrations localmente apenas
 if (app.Environment.IsDevelopment())
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var dbContext = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
-        dbContext.Database.Migrate();
-    }
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
+    db.Database.Migrate();
 }
 
 app.Run();
