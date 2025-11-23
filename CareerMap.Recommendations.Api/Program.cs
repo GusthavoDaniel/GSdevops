@@ -1,22 +1,23 @@
 using CareerMap.Recommendations.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Data.Sqlite;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Caminho gravável no App Service Linux
-var defaultPath = "/home/data/CareerMapRecommendations.db";
+// ✅ Caminho do banco — tenta pegar do ambiente, senão usa padrão
+var dbPath = Environment.GetEnvironmentVariable("SQLITE_DB_PATH")
+             ?? "/home/data/CareerMapRecommendations.db";
 
-// Lê da ConnectionStrings (pega o env var ConnectionStrings__DefaultConnection)
-// cai no fallback em /home/data se não existir
-var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-          ?? $"Data Source={defaultPath};Cache=Shared;Pooling=True";
+// ✅ Garante que a pasta existe (SQLite não cria pastas automaticamente)
+Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
-// Garante que a pasta /home/data existe antes de abrir o arquivo
-try { System.IO.Directory.CreateDirectory("/home/data"); } catch { /* ignore */ }
+// ✅ Registra o contexto com SQLite
+builder.Services.AddDbContext<RecommendationsDbContext>(opts =>
+    opts.UseSqlite($"Data Source={dbPath};Cache=Shared"));
 
-// Sempre SQLite
-builder.Services.AddDbContext<RecommendationsDbContext>(opt => opt.UseSqlite(conn));
-
+// Serviços padrão
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -24,6 +25,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -37,12 +39,13 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 app.MapGet("/", () => Results.Ok("API ok 🚀"));
 
-// Cria o arquivo/tabelas se não existir (rápido e suficiente para a demo)
+// ✅ Cria/migra o banco automaticamente
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<RecommendationsDbContext>();
-    db.Database.EnsureCreated(); // usando SQLite
+    db.Database.EnsureCreated(); // Para SQLite, é o suficiente
+    // db.Database.Migrate(); // use se quiser migrations
 }
 catch (Exception ex)
 {
