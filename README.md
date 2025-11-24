@@ -1,39 +1,45 @@
-🧠 CareerMap.Recommendations.Api - API de Recomendações (.NET 8)
-API RESTful desenvolvida em .NET 8 para gerenciar Carreiras e Competências, como parte da disciplina Advanced Business Development with .NET da Global Solution 2025 – DevOps Tools & Cloud Computing.
-O projeto implementa CI/CD completo com Azure DevOps, seguindo as melhores práticas de arquitetura e automação em nuvem (PaaS).
+# 🧠 CareerMap.Recommendations.Api - API de Recomendações (.NET 8)
 
-🚀 Funcionalidades Principais
-CRUD completo para Carreiras e suas Competências.
+API RESTful desenvolvida em **.NET 8** para gerenciar **Carreiras** e **Competências**, como parte da disciplina *Advanced Business Development with .NET* da **Global Solution 2025 – DevOps Tools & Cloud Computing**.  
+O projeto implementa **CI/CD completo** com **Azure DevOps**, seguindo as melhores práticas de arquitetura e automação em nuvem (**PaaS**).
 
-Paginação e HATEOAS nos endpoints.
+---
 
-Versionamento de API (/api/v1/).
+## 🚀 Funcionalidades Principais
 
-Health Checks (/health/ready e /health/live).
+- ✅ CRUD completo para **Carreiras** e **Competências**
+- 📄 Paginação e **HATEOAS** nos endpoints
+- 🔢 Versionamento de API (`/api/v1/`)
+- ❤️ **Health Checks** (`/health/ready` e `/health/live`)
+- 🪵 Logs estruturados com **Serilog**
+- ⚙️ CI/CD automatizado via **Azure Pipelines (Build + Release)**
+- ☁️ Deploy contínuo no **Azure App Service (Web App PaaS)**
+- 💾 Banco de dados hospedado no **Azure SQL Database (PaaS)**
+- 🧱 Infraestrutura provisionada via **Azure CLI Script**
 
-Logs estruturados com Serilog.
+---
 
-CI/CD automatizado via Azure Pipelines (Build + Release).
+## 🧩 Arquitetura da Solução
 
-Deploy contínuo no Azure App Service (Web App PaaS).
+### 🏗️ Visão Geral
 
-Banco de dados hospedado no Azure SQL Database (PaaS).
+| Camada | Descrição |
+|--------|------------|
+| **API (.NET 8)** | Exposição dos endpoints RESTful |
+| **Infrastructure (EF Core)** | Mapeamento ORM e persistência |
+| **Domain** | Entidades e regras de negócio |
+| **SQL Database (Azure PaaS)** | Armazenamento de dados persistente |
+| **App Service (PaaS)** | Hospedagem da API |
+| **Azure DevOps** | Gestão de código, tarefas e deploy automatizado |
 
-Infraestrutura provisionada via Azure CLI Script.
+### 🧰 Tecnologias utilizadas
 
-🧩 Arquitetura da Solução
-🏗️ Visão Geral
-Camada	Descrição
-API (.NET 8)	Exposição dos endpoints RESTful.
-Infrastructure (EF Core)	Mapeamento ORM e persistência.
-Domain	Entidades e regras de negócio.
-SQL Database (Azure PaaS)	Armazenamento de dados persistente.
-App Service (PaaS)	Hospedagem do backend.
-Azure DevOps (Boards, Repos, Pipelines)	Gestão de código, tarefas e deploy automatizado.
-📘 Tecnologias utilizadas:
-.NET 8 • C# • Entity Framework Core • Serilog • Azure DevOps • Azure CLI • Azure SQL • Azure Web App
+`.NET 8 • C# • Entity Framework Core • Serilog • Azure DevOps • Azure CLI • Azure SQL • Azure Web App`
 
-🛠️ Estrutura de Pastas
+---
+
+## 📁 Estrutura de Pastas
+
 GS.NET2/
 ├── CareerMap.Recommendations.sln
 ├── CareerMap.Recommendations.Api/
@@ -41,31 +47,37 @@ GS.NET2/
 ├── CareerMap.Recommendations.Infrastructure/
 ├── CareerMap.Recommendations.Tests/
 ├── scripts/
-│   ├── script-infra.sh         # Cria recursos no Azure (CLI)
-│   └── script-bd.sql           # Cria tabelas e dados de exemplo
+│ ├── script-infra.sh # Cria recursos no Azure (CLI)
+│ └── script-bd.sql # Cria tabelas e dados de exemplo
 ├── dockerfiles/
-│   └── Dockerfile              # Imagem base (opcional, PaaS utilizado)
-├── azure-pipeline.yml          # Pipeline de Build CI
+│ └── Dockerfile # Imagem base (opcional, PaaS utilizado)
+├── azure-pipeline.yml # Pipeline de Build CI
 └── README.md
-⚙️ Provisionamento em Nuvem (Azure CLI)
-Arquivo: /scripts/script-infra.sh
+
+yaml
+Copiar código
+
+---
+
+## ⚙️ Provisionamento em Nuvem (Azure CLI)
+
+Arquivo: `/scripts/script-infra.sh`
 
 Cria automaticamente:
 
-Resource Group
+- Resource Group  
+- App Service Plan  
+- Azure SQL Server + Database  
+- Web App PaaS  
+- Connection String configurada no App Service  
 
-App Service Plan
-
-Azure SQL Server + Database
-
-Web App PaaS
-
-Connection String configurada no App Service
-
+```bash
 bash scripts/script-infra.sh
 💾 Banco de Dados (Azure SQL)
 Arquivo: /scripts/script-bd.sql
 
+sql
+Copiar código
 CREATE TABLE Carreiras (
     Id INT PRIMARY KEY IDENTITY(1,1),
     Nome NVARCHAR(100),
@@ -109,8 +121,11 @@ PUT	/api/v1/Carreiras/{id}	Atualiza carreira existente
 DELETE	/api/v1/Carreiras/{id}	Remove carreira
 GET	/health/ready	Verifica status do app e DB
 GET	/health/live	Verifica se o app está ativo
+
 🧪 Exemplo de CRUD (JSON)
 Criar (POST)
+json
+Copiar código
 {
   "nome": "Cientista de Dados",
   "descricao": "Analisa dados para gerar insights de negócio.",
@@ -122,6 +137,8 @@ Criar (POST)
   ]
 }
 Resposta (201 Created)
+json
+Copiar código
 {
   "id": 3,
   "nome": "Cientista de Dados",
@@ -130,6 +147,8 @@ Resposta (201 Created)
   "nivel": 2
 }
 🧭 Como Executar Localmente
+bash
+Copiar código
 cd CareerMap.Recommendations.Api
 dotnet run
 Acesse: http://localhost:5000/swagger
@@ -150,6 +169,8 @@ Política de PR obrigatória
 📊 Testes Automatizados
 Rodados automaticamente na pipeline via xUnit:
 
+bash
+Copiar código
 dotnet test --collect:"XPlat Code Coverage"
 Publicação automática dos resultados no Azure DevOps.
 
@@ -158,7 +179,7 @@ Dados sensíveis (connection string, path de banco) são injetados via Applicati
 
 Nenhuma credencial exposta em código.
 
-📈 Resultado Final (Checklist GS)
+🎓 Resultado Final (Checklist GS)
 Requisito	Situação	Pontos
 Arquitetura Macro	✅	10
 Azure Boards	✅	10
@@ -170,22 +191,22 @@ Banco PaaS	✅	10
 Scripts (Infra + BD)	✅	10
 Dockerfile / YAML / Variáveis	✅	10
 Total Estimado	✅ COMPLETO	180 / 180 (Nota 10)
-🎥 Vídeo de Demonstração (YouTube)
-Roteiro de Apresentação:
 
-Mostrar o README e arquitetura macro.
+🎥 Vídeo de Demonstração
+Roteiro
+Mostrar o README e arquitetura macro
 
-Mostrar no Portal Azure os recursos (Web App, SQL, RG).
+Mostrar os recursos no Portal Azure (Web App, SQL, RG)
 
-Criar uma tarefa no Azure Boards e vincular um commit/PR.
+Criar e vincular tarefa no Azure Boards
 
-Mostrar Pipelines de Build + Release rodando automaticamente.
+Mostrar execução dos Pipelines (Build + Release)
 
-Demonstrar CRUD no Swagger (Create, Read, Update, Delete).
+Demonstrar CRUD completo no Swagger
 
-Mostrar banco atualizado no Azure SQL.
+Mostrar dados atualizados no Azure SQL
 
-Concluir com a tarefa finalizada no Boards com os links.
+Finalizar com tarefa concluída no Boards
 
 📘 Desenvolvido por Gusthavo Daniel (RM554681) — Global Solution 2025 (DevOps Tools & Cloud Computing)
 🏫 FIAP - Advanced Business Development with .NET
